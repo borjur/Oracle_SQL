@@ -1,0 +1,82 @@
+
+
+
+
+1)
+SELECT a.LAST_NAME, a.FIRST_NAME
+FROM INSTRUCTOR a 
+WHERE a.INSTRUCTOR_ID NOT IN
+(SELECT w.INSTRUCTOR_ID 
+FROM SECTION w
+JOIN GRADE_TYPE_WEIGHT e
+ON e.SECTION_ID = w.SECTION_ID
+JOIN GRADE_TYPE s
+ON e.GRADE_TYPE_CODE = s.GRADE_TYPE_CODE
+WHERE s.DESCRIPTION = 'Project')
+ORDER BY a.LAST_NAME, a.FIRST_NAME;
+
+2)
+SELECT SUM(COUNT(s.STUDENT_ID)) AS BELOW_AVERAGE
+FROM STUDENT s
+JOIN GRADE g ON g.STUDENT_ID = s.STUDENT_ID
+WHERE g.SECTION_ID = 86 AND g.GRADE_TYPE_CODE = 'FI' 
+GROUP BY s.STUDENT_ID,s.LAST_NAME 
+HAVING AVG(g.NUMERIC_GRADE) <
+(SELECT AVG(NUMERIC_GRADE)
+FROM (
+SELECT AVG(g.NUMERIC_GRADE) AS NUMERIC_GRADE 
+  FROM STUDENT s
+    JOIN GRADE g ON g.STUDENT_ID = s.STUDENT_ID
+  WHERE g.SECTION_ID = 86 
+    AND g.GRADE_TYPE_CODE = 'FI' 
+    GROUP BY s.LAST_NAME
+    )
+    )
+ORDER BY s.LAST_NAME;
+
+3)
+SELECT w.CITY, w.STATE
+FROM ZIPCODE w, STUDENT s, ENROLLMENT z
+WHERE w.ZIP = s.ZIP AND s.STUDENT_ID = z.STUDENT_ID
+GROUP BY w.CITY, w.STATE
+HAVING COUNT(*)   = 
+(SELECT MAX(ENROLLED)
+FROM
+(SELECT w.CITY, w.STATE, COUNT(z.ENROLL_DATE) AS ENROLLED
+FROM ZIPCODE w, STUDENT s, ENROLLMENT z
+WHERE w.ZIP = s.ZIP AND s.STUDENT_ID = z.STUDENT_ID
+GROUP BY w.CITY, w.STATE)) ;
+
+
+4)
+select student_id,first_name,last_name, numeric_grade
+  from ( select s.student_id
+              , w.last_name
+              , w.first_name
+              , s.numeric_grade
+              , min(s.numeric_grade) over () as numeric_final_grade
+           from grade s
+           join section z
+             on s.section_id = z.section_id
+           join student w
+             on s.student_id = w.student_id
+             where z.section_id = 81 
+            and s.grade_type_code = 'FI'
+                )
+ where numeric_grade = numeric_final_grade;
+
+
+5)
+
+WITH q AS (SELECT s.student_id, s.last_name,s.first_name, COUNT(DISTINCT z.course_no) AS courses, COUNT(z.course_no) AS courses_taken
+       FROM enrollment w, section z, student s
+       WHERE w.section_id = z.section_id AND w.student_id = s.student_id
+       GROUP BY s.student_id,s.last_name,s.first_name
+       HAVING COUNT(course_no) > 1
+       ORDER BY s.student_id
+       )
+SELECT student_id,last_name,first_name
+FROM q 
+WHERE courses < courses_taken
+ORDER BY student_id;     
+       
